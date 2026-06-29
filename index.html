@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Master Suite</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --primary: #4f46e5; --bg: #f3f4f6; --card-bg: #ffffff; 
+            --text: #111827; --border: #e5e7eb; --dark-btn: #1e293b; --danger: #ef4444; 
+        }
+        
+        body { font-family: 'Inter', system-ui, sans-serif; background: #e2e8f0; margin: 0; }
+        
+        .tab-btn { padding: 15px 25px; font-weight: 800; cursor: pointer; border-bottom: 4px solid transparent; transition: 0.3s; color: #64748b; }
+        .tab-btn.active { border-bottom: 4px solid var(--primary); color: var(--primary); background: white; }
+        .view-content { display: none; }
+        .view-content.active { display: block; }
+
+        .tracker-pro-body { background:#f1f5f9; padding: 20px; border-radius: 0 0 20px 20px; }
+        ::-webkit-scrollbar{width:5px;}
+        ::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:10px;}
+
+        .settlement-container { max-width: 1300px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; padding: 20px; }
+        .header-section { text-align: center; padding: 10px 0 20px 0; }
+        .header-section h1 { margin: 0; font-weight: 800; color: #1e293b; font-size: 2.2rem; text-transform: uppercase; }
+        .date-line { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 5px; }
+        .line { height: 2px; width: 40px; background: var(--primary); border-radius: 2px; }
+        #liveDate { margin: 0; color: #6b7280; font-weight: 600; font-size: 0.9rem; }
+        
+        .salary-bar {
+            background: #1e293b; color: #cbd5e1; padding: 12px; border-radius: 4px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px; font-size: 0.75rem; border-bottom: 4px solid var(--primary);
+        }
+        .salary-bar b { color: white; margin-left: 4px; }
+        .tool-row { display: grid; grid-template-columns: 1fr 1.5fr 1fr; gap: 20px; }
+        .card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
+        .layout-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f9fafb; padding: 12px; text-align: left; font-size: 0.75rem; color: #6b7280; border-bottom: 1px solid var(--border); }
+        td { padding: 8px; border-bottom: 1px solid #f3f4f6; }
+        .settlement-container input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
+        
+        .btn { padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; display: block; width: 100%; text-align: center; }
+        .btn-blue { background: var(--primary); color: white; }
+        .btn-dark { background: var(--dark-btn); color: white; }
+        .btn-danger-outline { background: white; color: var(--danger); border: 1px solid var(--danger); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-orange { background: #f97316; color: white; }
+        
+        .res-val { font-family: monospace; font-weight: 700; text-align: right; }
+        .neg { color: #ef4444; } .pos { color: #10b981; }
+        
+        .summary-card { background: #1e293b; color: white; padding: 25px; border-radius: 16px; text-align: center; margin-top: 20px; }
+        .grand-total { font-size: 3.5rem; font-weight: 800; display: block; color: #10b981; margin: 10px 0; }
+        .sub-stat { font-size: 1.1rem; opacity: 0.8; margin: 5px 0; display: flex; justify-content: space-between; }
+        #reportCaptureArea { padding: 10px; background: #f3f4f6; }
+        .high-sal { background: #e0e7ff !important; border-color: var(--primary) !important; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-white shadow-lg flex justify-center sticky top-0 z-50 border-b border-gray-200">
+        <div id="btn-dashboard" class="tab-btn active" onclick="switchTab('dashboard')">DAILY SETTLEMENT</div>
+        <div id="btn-tracker" class="tab-btn" onclick="switchTab('tracker')">HISTORY TRACKER (EXCEL)</div>
+    </div>
+
+    <div id="view-dashboard" class="view-content active">
+        <div class="header-section">
+            <h1>Daily <span style="color: var(--primary);">Settlement</span> Dashboard</h1>
+            <div class="date-line">
+                <div class="line"></div>
+                <p id="liveDate"></p>
+                <div class="line"></div>
+            </div>
+        </div>
+
+        <div class="settlement-container">
+            <div class="salary-bar">
+                <span>300-499: <b>50</b></span> <span>500-999: <b>100</b></span>
+                <span>1000-1309: <b>150</b></span> <span>1310-1800: <b>225</b></span>
+                <span>1810-2500: <b>300</b></span> <span>2510-3500: <b>350</b></span>
+                <span>3510-4500: <b>400</b></span> <span>4510-5500: <b>450</b></span>
+                <span>5510-6500: <b>500</b></span> <span>6510-7500: <b>600</b></span>
+                <span>7510-8500: <b>700</b></span> <span>8510-9500: <b>800</b></span>
+                <span>9510-11100: <b>900</b></span> <span>11100-Up: <b>1000</b></span>
+            </div>
+
+            <div class="tool-row">
+                <div class="card">
+                    <h3 class="font-bold mb-2">📷 Auto-Scanner</h3>
+                    <input type="file" id="imagePicker" accept="image/*" class="mb-2">
+                    <button id="scanNow" class="btn btn-blue">Start Scan</button>
+                    <div id="scanStatus" class="mt-2 text-center font-bold text-indigo-600 text-xs">Ready</div>
+                </div>
+                <div class="card">
+                    <h3 class="font-bold mb-2">⚡ Quick Actions</h3>
+                    <input type="text" id="batchIds" placeholder="Batch IDs (1, 2...)" class="mb-2">
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="apply300()" class="btn btn-dark">Apply 300</button>
+                        <button onclick="resetData()" class="btn btn-danger-outline">Clear Values</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="addNewStaff()" class="btn btn-success flex-1">+ Add Row</button>
+                        <button onclick="hardResetTo20()" class="btn flex-1 bg-red-600 text-white hover:bg-red-700">Clear & Reset List</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="font-bold mb-2">💾 System Sync</h3>
+                    <p class="text-xs text-gray-500 mb-2">Push results to History Tracker</p>
+                    <button onclick="pushToHistory()" class="btn btn-orange mb-2">SAVE TO HISTORY</button>
+                    <button onclick="generateReport()" class="btn btn-success">Generate Image</button>
+                </div>
+            </div>
+
+            <div id="reportCaptureArea">
+                <div class="layout-grid">
+                    <div class="sidebar">
+                        <div class="card">
+                            <h3 class="font-bold mb-2 border-b pb-2 text-slate-700">Accounting Flow</h3>
+                            <label class="text-xs font-bold text-slate-500">Yesterday's Pundo</label>
+                            <input type="number" id="yesterdayPundo" onchange="calc()">
+                            
+                            <label class="text-xs font-bold text-slate-500 mt-2 block">Leo (Expense)</label>
+                            <input type="number" id="leo" onchange="calc()">
+                            
+                            <label class="text-xs font-bold text-slate-500 mt-2 block">Dodong (Expense)</label>
+                            <input type="number" id="dodong" onchange="calc()">
+                            
+                            <label class="text-xs font-bold text-slate-500 mt-2 block">Kabang (Expense)</label>
+                            <input type="number" id="kabang" onchange="calc()">
+                            
+                            <label class="text-xs font-bold text-slate-500 mt-2 block">Others (Expense)</label>
+                            <input type="number" id="others" onchange="calc()">
+                        </div>
+                    </div>
+                    <div class="main-content">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>STAFF</th><th width="100">BET</th><th width="100">HITS</th><th width="100">SALARY</th><th style="text-align:right">NET</th></tr>
+                                </thead>
+                                <tbody id="mainTable"></tbody>
+                                <tfoot>
+                                    <tr class="bg-gray-100 font-extrabold">
+                                        <td>TOTALS</td><td id="tBet">0</td><td id="tHits">0</td><td id="tSal">0</td><td id="tNet" style="text-align:right">0</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="summary-card">
+                            <div class="sub-stat"><span>Yesterday's Pundo:</span> <span id="displayYestPundo">0.00</span></div>
+                            <div class="sub-stat"><span>Today's Gross (Net):</span> <span id="displayTodayGross">0.00</span></div>
+                            <div class="sub-stat"><span>Total Expenses:</span> <span id="displayTotalExpenses" class="text-red-400">0.00</span></div>
+                            <div class="mt-4 p-3 bg-white/5 border border-dashed border-white/20 rounded-lg">
+                                <div class="sub-stat m-0 font-bold">
+                                    <span id="tapadaLabel">DAILY STATUS:</span> 
+                                    <span id="displayDailyActual">0.00</span>
+                                </div>
+                            </div>
+                            <hr class="opacity-20 my-4">
+                            <span id="grandTotal" class="grand-total">0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-tracker" class="view-content">
+        <div class="tracker-pro-body">
+            <div class="max-w-6xl mx-auto">
+                <div class="bg-white shadow rounded-3xl p-5 mb-5 border-l-8 border-indigo-500">
+                    <h1 class="text-2xl font-bold text-slate-800 uppercase">History Tracking</h1>
+                    <p class="text-slate-500 text-sm">Automated Ledger System</p>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                    <div class="bg-green-500 text-white p-4 rounded-2xl shadow">
+                        <p class="text-xs">TOTAL CASH IN</p>
+                        <h2 id="totalKabig" class="text-xl font-bold">₱0</h2>
+                    </div>
+                    <div class="bg-blue-500 text-white p-4 rounded-2xl shadow">
+                        <p class="text-xs">TOTAL TAPADA</p>
+                        <h2 id="totalTapada" class="text-xl font-bold">₱0</h2>
+                    </div>
+                    <div class="bg-red-500 text-white p-4 rounded-2xl shadow">
+                        <p class="text-xs">TOTAL EXPENSES</p>
+                        <h2 id="totalExpenses" class="text-xl font-bold">₱0</h2>
+                    </div>
+                    <div class="bg-yellow-500 text-white p-4 rounded-2xl shadow">
+                        <p class="text-xs">SYSTEM NET TOTAL</p>
+                        <h2 id="overallTotal" class="text-xl font-bold">₱0</h2>
+                    </div>
+                </div>
+
+                <div class="bg-white shadow rounded-3xl p-5 mb-5">
+                    <h2 class="font-bold mb-3">Manual Entry</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                        <input id="tracker_date" type="date" class="border p-3 rounded-xl text-sm">
+                        <input id="tracker_kabig" type="number" placeholder="Cash In" class="border p-3 rounded-xl text-sm">
+                        <input id="tracker_tapada" type="number" placeholder="Tapada" class="border p-3 rounded-xl text-sm">
+                        <input id="tracker_expenses" type="number" placeholder="Expenses" class="border p-3 rounded-xl text-sm">
+                        <button onclick="addHistoryRecord()" class="bg-indigo-600 text-white p-3 rounded-2xl font-bold hover:bg-indigo-700 transition">ADD</button>
+                    </div>
+                </div>
+
+                <div class="bg-white shadow rounded-3xl p-5">
+                    <h2 class="font-bold mb-4">Past Records</h2>
+                    <div id="list" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let CURRENT_TODAY_NET = 0;
+        let CURRENT_TODAY_EXPENSES = 0;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-' + tab).classList.add('active');
+            document.getElementById('btn-' + tab).classList.add('active');
+        }
+
+        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('liveDate').innerText = new Date().toLocaleDateString(undefined, dateOptions);
+
+        function getTier(val) {
+            if (val < 300) return 0;
+            if (val <= 499) return 50;
+            if (val <= 999) return 100;
+            if (val <= 1309) return 150;
+            if (val <= 1800) return 225;
+            if (val <= 2500) return 300;
+            if (val <= 3500) return 350;
+            if (val <= 4500) return 400;
+            if (val <= 5500) return 450;
+            if (val <= 6500) return 500;
+            if (val <= 7500) return 600;
+            if (val <= 8500) return 700;
+            if (val <= 9500) return 800;
+            if (val <= 11100) return 900;
+            return 1000;
+        }
+
+        let staff = JSON.parse(localStorage.getItem('staff_db_v5')) || [];
+        if (staff.length === 0) {
+            staff = Array.from({length: 20}, (_, i) => ({ name: `MDdongs ${(i+1).toString().padStart(2,'0')}`, bet:0, hits:0, sal:0 }));
+        }
+
+        function drawSettlement() {
+            const body = document.getElementById("mainTable");
+            body.innerHTML = "";
+            staff.forEach((s, i) => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><input type="text" value="${s.name}" onchange="updateStaff(${i},'name',this.value)"></td>
+                    <td><input type="number" value="${s.bet||''}" onchange="updateStaff(${i},'bet',this.value)"></td>
+                    <td><input type="number" value="${s.hits||''}" onchange="updateStaff(${i},'hits',this.value)"></td>
+                    <td><input type="number" class="${s.sal>=300?'high-sal':''}" value="${s.sal||''}" onchange="updateStaff(${i},'sal',this.value)"></td>
+                    <td class="res-val" id="r-${i}">0</td>
+                `;
+                body.appendChild(tr);
+            });
+            ['yesterdayPundo', 'leo', 'dodong', 'kabang', 'others'].forEach(id => {
+                const v = localStorage.getItem('fin_v5_'+id);
+                if(v) document.getElementById(id).value = v;
+            });
+            calc();
+        }
+
+        function updateStaff(i, field, val) {
+            if(field === 'bet') { const nVal = parseFloat(val) || 0; staff[i].bet = nVal; staff[i].sal = getTier(nVal); }
+            else if(field === 'hits') staff[i].hits = parseFloat(val) || 0;
+            else if(field === 'sal') staff[i].sal = parseFloat(val) || 0;
+            else staff[i].name = val;
+            drawSettlement();
+        }
+
+        function calc() {
+            let b=0, h=0, s=0, todayGrossNet=0;
+            staff.forEach((st, i) => {
+                const net = st.bet - st.hits - st.sal;
+                b+=st.bet; h+=st.hits; s+=st.sal; todayGrossNet+=net;
+                const r = document.getElementById(`r-${i}`);
+                if(r) { r.innerText = net.toLocaleString(); r.className = `res-val ${net<0?'neg':'pos'}`; }
+            });
+
+            CURRENT_TODAY_NET = todayGrossNet;
+            document.getElementById('tBet').innerText = b.toLocaleString();
+            document.getElementById('tHits').innerText = h.toLocaleString();
+            document.getElementById('tSal').innerText = s.toLocaleString();
+            document.getElementById('tNet').innerText = todayGrossNet.toLocaleString();
+
+            const yesterday = Number(document.getElementById('yesterdayPundo').value) || 0;
+            const expenses = (Number(document.getElementById('leo').value) || 0) + 
+                             (Number(document.getElementById('dodong').value) || 0) + 
+                             (Number(document.getElementById('kabang').value) || 0) +
+                             (Number(document.getElementById('others').value) || 0);
+            
+            CURRENT_TODAY_EXPENSES = expenses;
+            const dailyActualBalance = todayGrossNet - expenses;
+            const finalBalance = yesterday + dailyActualBalance;
+
+            const labelEl = document.getElementById('tapadaLabel');
+            const dailyValEl = document.getElementById('displayDailyActual');
+            
+            dailyValEl.innerText = dailyActualBalance.toLocaleString(undefined, {minimumFractionDigits:2});
+            if(dailyActualBalance >= 0) { labelEl.innerText = "TODAY'S KABIG:"; labelEl.style.color = "#10b981"; dailyValEl.style.color = "#10b981"; }
+            else { labelEl.innerText = "TODAY'S TAPADA:"; labelEl.style.color = "#ef4444"; dailyValEl.style.color = "#ef4444"; }
+
+            document.getElementById('displayYestPundo').innerText = yesterday.toLocaleString(undefined,{minimumFractionDigits:2});
+            document.getElementById('displayTodayGross').innerText = todayGrossNet.toLocaleString(undefined,{minimumFractionDigits:2});
+            document.getElementById('displayTotalExpenses').innerText = expenses.toLocaleString(undefined,{minimumFractionDigits:2});
+            document.getElementById('grandTotal').innerText = finalBalance.toLocaleString(undefined,{minimumFractionDigits:2});
+
+            localStorage.setItem('staff_db_v5', JSON.stringify(staff));
+            ['yesterdayPundo', 'leo', 'dodong', 'kabang', 'others'].forEach(id => {
+                localStorage.setItem('fin_v5_'+id, document.getElementById(id).value);
+            });
+        }
+
+        function hardResetTo20() {
+            if(confirm("This will clear all rows and reset back to 20 empty placeholders. Proceed?")) {
+                staff = Array.from({length: 20}, (_, i) => ({ 
+                    name: `MDdongs ${(i+1).toString().padStart(2,'0')}`, 
+                    bet: 0, 
+                    hits: 0, 
+                    sal: 0 
+                }));
+                
+                ['leo', 'dodong', 'kabang', 'others', 'yesterdayPundo'].forEach(id => {
+                    document.getElementById(id).value = "";
+                    localStorage.removeItem('fin_v5_'+id);
+                });
+
+                localStorage.setItem('staff_db_v5', JSON.stringify(staff));
+                drawSettlement();
+            }
+        }
+
+        function pushToHistory() {
+            const today = new Date();
+            const formattedDate = (today.getMonth() + 1).toString().padStart(2, '0') + '/' + 
+                                today.getDate().toString().padStart(2, '0') + '/' + 
+                                today.getFullYear();
+            
+            let kabig = CURRENT_TODAY_NET > 0 ? CURRENT_TODAY_NET : 0;
+            let tapada = CURRENT_TODAY_NET < 0 ? Math.abs(CURRENT_TODAY_NET) : 0;
+            let expenses = CURRENT_TODAY_EXPENSES;
+
+            if(confirm(`Sync to History?\n\nDate: ${formattedDate}\nNet: ${CURRENT_TODAY_NET}`)) {
+                history_rows.unshift({ date: formattedDate, kabig: kabig, tapada: tapada, expenses: expenses });
+                localStorage.setItem("finance_pro", JSON.stringify(history_rows));
+                renderTracker();
+                alert("Saved!");
+            }
+        }
+
+        function addNewStaff() {
+            staff.push({ name: `MDdongs ${(staff.length+1).toString().padStart(2,'0')}`, bet:0, hits:0, sal:0 });
+            drawSettlement();
+        }
+
+        function apply300() {
+            const input = document.getElementById('batchIds').value;
+            if(!input) return;
+            const ids = input.split(',').map(x => parseInt(x.trim())-1);
+            ids.forEach(id => { if(id >=0 && id < staff.length) staff[id].sal = 300; });
+            drawSettlement();
+        }
+
+        function resetData() { 
+            if(confirm("Clear daily numbers? (Keeps names intact)")) { 
+                staff.forEach(s=>{s.bet=0;s.hits=0;s.sal=0;}); 
+                ['leo', 'dodong', 'kabang', 'others'].forEach(id => document.getElementById(id).value = "");
+                drawSettlement(); 
+            }
+        }
+
+        async function generateReport() {
+            const element = document.getElementById('reportCaptureArea');
+            const canvas = await html2canvas(element, { backgroundColor: "#f3f4f6", scale: 2 });
+            const link = document.createElement('a');
+            link.download = `Report-${new Date().toISOString().split('T')[0]}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        document.getElementById('scanNow').onclick = async function() {
+            const picker = document.getElementById('imagePicker');
+            const status = document.getElementById('scanStatus');
+            if(!picker.files[0]) return alert("Select photo!");
+            status.innerText = "⏳ SCANNING...";
+            try {
+                const worker = await Tesseract.createWorker();
+                await worker.setParameters({
+                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,-·/ '
+                });
+
+                const { data: { text } } = await worker.recognize(picker.files[0]);
+                
+                const words = text.replace(/ONG-[a-zA-Z0-9]+/gi, '')
+                                  .replace(/DODONG|NORTE/gi, '')
+                                  .replace(/[·\-\/]/g, ' ')
+                                  .split(/\s+/)
+                                  .filter(Boolean);
+
+                const targetedNames = [
+                    "ANGELIE", "JENVE", "ANGEL", "LIBERTY", "JEAN", "MERCEDITA", "EVAN", "REGINE", "ARNEL", "JOY", "VANNESA",
+                    "CHA-CHA", "CHACHA", "CHA", "CHINKY", "RONELINE", "ERICA", "JONNIE", "MYLAH", "DECELYN"
+                ];
+
+                let currentActiveList = JSON.parse(localStorage.getItem('staff_db_v5')) || [];
+                currentActiveList = currentActiveList.filter(s => !s.name.toUpperCase().startsWith("MDDONGS"));
+
+                for(let i = 0; i < words.length; i++) {
+                    let wordUpper = words[i].toUpperCase();
+                    
+                    let foundTarget = targetedNames.find(t => {
+                        if (t === "ANGEL") return wordUpper === "ANGEL";
+                        if (t === "ANGELIE") return wordUpper === "ANGELIE";
+                        if (t === "CHA") return wordUpper === "CHA";
+                        return wordUpper.includes(t.replace("-",""));
+                    });
+
+                    if(foundTarget) {
+                        let foundName = wordUpper;
+                        if(i + 1 < words.length && /[a-zA-Z]{3,}/.test(words[i+1])) {
+                            foundName += " " + words[i+1].toUpperCase();
+                        }
+                        
+                        let extractedNums = [];
+                        for(let n = 1; n <= 8; n++) {
+                            if(i + n >= words.length) break;
+                            let token = words[i + n].replace(/,/g, '');
+                            if(/^[-?0-9]+$/.test(token)) {
+                                extractedNums.push(parseFloat(token));
+                            }
+                            if(extractedNums.length >= 2) break;
+                        }
+                        
+                        if(extractedNums.length >= 2) {
+                            let itemBet = Math.abs(extractedNums[0]);
+                            let itemHits = Math.abs(extractedNums[1]);
+                            
+                            let parsedFirstWord = foundName.split(" ")[0];
+                            let existingIndex = currentActiveList.findIndex(s => s.name.toUpperCase().split(" ")[0] === parsedFirstWord);
+                            
+                            if(existingIndex >= 0) {
+                                currentActiveList[existingIndex].bet = itemBet;
+                                currentActiveList[existingIndex].hits = itemHits;
+                                currentActiveList[existingIndex].sal = getTier(itemBet);
+                            } else {
+                                let displayName = foundName;
+                                if(parsedFirstWord === "CHA" && words[i+1].toUpperCase() === "CHA") {
+                                    displayName = "CHA-CHA";
+                                    if(i + 2 < words.length && /[a-zA-Z]{3,}/.test(words[i+2])) {
+                                        displayName += " " + words[i+2].toUpperCase();
+                                    }
+                                }
+
+                                currentActiveList.push({
+                                    name: displayName,
+                                    bet: itemBet,
+                                    hits: itemHits,
+                                    sal: getTier(itemBet)
+                                });
+                            }
+                            i += 1; 
+                        }
+                    }
+                }
+
+                if (currentActiveList.length > 0) {
+                    staff = currentActiveList;
+                    if(staff.length < 20) {
+                        while(staff.length < 20) {
+                            staff.push({ name: `MDdongs ${(staff.length+1).toString().padStart(2,'0')}`, bet:0, hits:0, sal:0 });
+                        }
+                    }
+                    status.innerText = "✅ COMPLETE";
+                    drawSettlement();
+                } else {
+                    status.innerText = "⚠️ NO DATA FOUND";
+                    alert("Could not pull scanner details.");
+                }
+                
+                await worker.terminate();
+            } catch (e) { 
+                console.error(e);
+                status.innerText = "❌ ERROR"; 
+            }
+        }
+
+        let history_rows = JSON.parse(localStorage.getItem("finance_pro")) || [];
+
+        function fmt(n){ return "₱" + Number(n || 0).toLocaleString(); }
+
+        function renderTracker(){
+            let k=0,t=0,e=0;
+            const list=document.getElementById("list");
+            list.innerHTML="";
+            history_rows.forEach((r,i)=>{
+                k+=+r.kabig; t+=+r.tapada; e+=+r.expenses;
+                list.innerHTML+=`
+                <div class="border p-4 rounded-2xl bg-slate-50 shadow-sm border-l-4 border-slate-300">
+                    <div class="flex justify-between mb-2">
+                        <b class="text-slate-700">${r.date}</b>
+                        <button onclick="delHistoryRecord(${i})" class="text-red-500 text-xs font-bold uppercase">Delete</button>
+                    </div>
+                    <div class="grid grid-cols-3 text-center text-xs">
+                        <div>CASH IN<br><b class="text-green-600">${fmt(r.kabig)}</b></div>
+                        <div>TAPADA<br><b class="text-blue-600">${fmt(r.tapada)}</b></div>
+                        <div>EXPENSES<br><b class="text-red-600">${fmt(r.expenses)}</b></div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById("totalKabig").innerText=fmt(k);
+            document.getElementById("totalTapada").innerText=fmt(t);
+            document.getElementById("totalExpenses").innerText=fmt(e);
+            document.getElementById("overallTotal").innerText=fmt(k-t-e);
+        }
+
+        function addHistoryRecord(){
+            let d=document.getElementById("tracker_date").value;
+            let k=document.getElementById("tracker_kabig").value||0;
+            let t=document.getElementById("tracker_tapada").value||0;
+            let e=document.getElementById("tracker_expenses").value||0;
+            if(!d) return alert("Select date");
+            history_rows.unshift({date:d, kabig:k, tapada:t, expenses:e});
+            localStorage.setItem("finance_pro", JSON.stringify(history_rows));
+            renderTracker();
+        }
+
+        function delHistoryRecord(i){
+            if(confirm("Delete record?")) {
+                history_rows.splice(i,1);
+                localStorage.setItem("finance_pro", JSON.stringify(history_rows));
+                renderTracker();
+            }
+        }
+
+        drawSettlement();
+        renderTracker();
+    </script>
+</body>
+</html>
